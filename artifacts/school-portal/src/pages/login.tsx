@@ -48,8 +48,12 @@ export default function Login() {
         className="w-full max-w-md z-10"
       >
         <div className="text-center mb-8">
-          <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-primary to-cyan-500 flex items-center justify-center mx-auto mb-6 shadow-2xl shadow-primary/20">
-            <GraduationCap className="w-8 h-8 text-white" />
+          <div className="mx-auto mb-5 w-28 h-28 rounded-full bg-white flex items-center justify-center shadow-2xl shadow-primary/30 overflow-hidden">
+            <img
+              src={`${import.meta.env.BASE_URL}images/school-logo.jpeg`}
+              alt="The Excel School Logo"
+              className="w-full h-full object-contain p-1"
+            />
           </div>
           <h1 className="text-3xl font-display font-bold text-white mb-1">The Excel School</h1>
           <p className="text-sm text-primary/80 font-medium mb-1">Principal: Sir Ahmad Raza</p>

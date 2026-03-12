@@ -59,11 +59,11 @@ export function Layout({ children }: { children: React.ReactNode }) {
       {/* Desktop Sidebar */}
       <aside className="hidden md:flex flex-col w-64 bg-card border-r border-white/5 px-4 py-8 h-screen sticky top-0">
         <div className="flex items-center gap-3 px-2 mb-10">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-primary to-cyan-500 flex items-center justify-center shadow-lg shadow-primary/20">
-            <GraduationCap className="w-6 h-6 text-white" />
+          <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center shadow-lg shadow-primary/20 overflow-hidden shrink-0">
+            <img src="/images/school-logo.jpeg" alt="Logo" className="w-full h-full object-contain p-0.5" />
           </div>
           <div>
-            <h1 className="font-display font-bold text-base leading-tight">The Excel School</h1>
+            <h1 className="font-display font-bold text-sm leading-tight">The Excel School</h1>
             <p className="text-xs text-muted-foreground capitalize">{user.role}</p>
           </div>
         </div>
@@ -101,10 +101,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
         {/* Mobile Header */}
         <header className="md:hidden flex items-center justify-between p-4 bg-card/80 backdrop-blur-xl border-b border-white/5 sticky top-0 z-40">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-primary to-cyan-500 flex items-center justify-center">
-              <GraduationCap className="w-5 h-5 text-white" />
+            <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center overflow-hidden shrink-0">
+              <img src="/images/school-logo.jpeg" alt="Logo" className="w-full h-full object-contain p-0.5" />
             </div>
-            <h1 className="font-display font-bold text-base">The Excel School</h1>
+            <h1 className="font-display font-bold text-sm">The Excel School</h1>
           </div>
           <button onClick={handleLogout} className="p-2 text-muted-foreground hover:text-white">
             <LogOut className="w-5 h-5" />
