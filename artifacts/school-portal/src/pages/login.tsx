@@ -51,8 +51,9 @@ export default function Login() {
           <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-primary to-cyan-500 flex items-center justify-center mx-auto mb-6 shadow-2xl shadow-primary/20">
             <GraduationCap className="w-8 h-8 text-white" />
           </div>
-          <h1 className="text-3xl font-display font-bold text-white mb-2">Nexus Portal</h1>
-          <p className="text-muted-foreground">Sign in to access your dashboard</p>
+          <h1 className="text-3xl font-display font-bold text-white mb-1">The Excel School</h1>
+          <p className="text-sm text-primary/80 font-medium mb-1">Principal: Sir Ahmad Raza</p>
+          <p className="text-muted-foreground text-sm">+92 306 2549080</p>
         </div>
 
         <Card className="p-8">

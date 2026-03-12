@@ -63,7 +63,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
             <GraduationCap className="w-6 h-6 text-white" />
           </div>
           <div>
-            <h1 className="font-display font-bold text-lg leading-tight">Nexus Portal</h1>
+            <h1 className="font-display font-bold text-base leading-tight">The Excel School</h1>
             <p className="text-xs text-muted-foreground capitalize">{user.role}</p>
           </div>
         </div>
@@ -104,7 +104,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
             <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-primary to-cyan-500 flex items-center justify-center">
               <GraduationCap className="w-5 h-5 text-white" />
             </div>
-            <h1 className="font-display font-bold text-lg">Nexus</h1>
+            <h1 className="font-display font-bold text-base">The Excel School</h1>
           </div>
           <button onClick={handleLogout} className="p-2 text-muted-foreground hover:text-white">
             <LogOut className="w-5 h-5" />
