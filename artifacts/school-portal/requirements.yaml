@@ -1,0 +1,16 @@
+packages:
+  "framer-motion": "For page transitions, modal animations, and micro-interactions"
+  "recharts": "For admin dashboard charts and student progress visualization"
+  "date-fns": "For date formatting in diary, timetable, and general display"
+  "lucide-react": "For beautiful consistent icons"
+  "clsx": "For conditional tailwind class merging"
+  "tailwind-merge": "For robust tailwind class merging"
+
+images:
+  - path: "artifacts/school-portal/public/images/login-bg.png"
+    description: "Abstract dark geometric background with deep navy, indigo, and subtle neon purple accents, professional high tech feel, glassmorphism elements"
+    aspect_ratio: "16:9"
+
+notes:
+  - App relies on generated Orval hooks from @workspace/api-client-react
+  - Dark mode first design, styled heavily with custom UI components to ensure premium look and feel

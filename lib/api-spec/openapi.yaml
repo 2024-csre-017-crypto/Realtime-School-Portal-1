@@ -1,22 +1,38 @@
 openapi: 3.1.0
 info:
-  # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: School Portal API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: auth
+    description: Authentication
+  - name: students
+    description: Student management
+  - name: teachers
+    description: Teacher management
+  - name: fees
+    description: Fee management
+  - name: diary
+    description: Diary entries
+  - name: syllabus
+    description: Syllabus management
+  - name: timetable
+    description: Timetable management
+  - name: progress
+    description: Progress management
+  - name: admin
+    description: Admin operations
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -24,6 +40,468 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /auth/login:
+    post:
+      operationId: login
+      tags: [auth]
+      summary: Login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+      responses:
+        "200":
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LoginResponse"
+        "401":
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /auth/me:
+    get:
+      operationId: getMe
+      tags: [auth]
+      summary: Get current user
+      responses:
+        "200":
+          description: Current user info
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LoginResponse"
+        "401":
+          description: Not authenticated
+
+  /auth/logout:
+    post:
+      operationId: logout
+      tags: [auth]
+      summary: Logout
+      responses:
+        "200":
+          description: Logged out
+
+  /students:
+    get:
+      operationId: getStudents
+      tags: [students]
+      summary: Get all students
+      responses:
+        "200":
+          description: List of students
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Student"
+    post:
+      operationId: createStudent
+      tags: [students]
+      summary: Create student (admin only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateStudentRequest"
+      responses:
+        "201":
+          description: Student created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Student"
+
+  /students/{studentId}:
+    get:
+      operationId: getStudent
+      tags: [students]
+      summary: Get a student
+      parameters:
+        - name: studentId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Student found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Student"
+    put:
+      operationId: updateStudent
+      tags: [students]
+      summary: Update student
+      parameters:
+        - name: studentId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateStudentRequest"
+      responses:
+        "200":
+          description: Student updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Student"
+    delete:
+      operationId: deleteStudent
+      tags: [students]
+      summary: Delete student
+      parameters:
+        - name: studentId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Deleted
+
+  /teachers:
+    get:
+      operationId: getTeachers
+      tags: [teachers]
+      summary: Get all teachers
+      responses:
+        "200":
+          description: List of teachers
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Teacher"
+    post:
+      operationId: createTeacher
+      tags: [teachers]
+      summary: Create teacher (admin only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateTeacherRequest"
+      responses:
+        "201":
+          description: Teacher created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Teacher"
+
+  /teachers/{teacherId}:
+    put:
+      operationId: updateTeacher
+      tags: [teachers]
+      summary: Update teacher
+      parameters:
+        - name: teacherId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateTeacherRequest"
+      responses:
+        "200":
+          description: Teacher updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Teacher"
+    delete:
+      operationId: deleteTeacher
+      tags: [teachers]
+      summary: Delete teacher
+      parameters:
+        - name: teacherId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Deleted
+
+  /fees/{studentId}:
+    get:
+      operationId: getStudentFees
+      tags: [fees]
+      summary: Get fees for a student
+      parameters:
+        - name: studentId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Fee records
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/FeeRecord"
+    post:
+      operationId: addFeeRecord
+      tags: [fees]
+      summary: Add fee record
+      parameters:
+        - name: studentId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateFeeRequest"
+      responses:
+        "201":
+          description: Fee record created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FeeRecord"
+
+  /fees/{studentId}/{feeId}:
+    put:
+      operationId: updateFeeRecord
+      tags: [fees]
+      summary: Update fee record (mark paid/unpaid)
+      parameters:
+        - name: studentId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: feeId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateFeeRequest"
+      responses:
+        "200":
+          description: Fee updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FeeRecord"
+
+  /diary/{studentId}:
+    get:
+      operationId: getStudentDiary
+      tags: [diary]
+      summary: Get diary entries for a student
+      parameters:
+        - name: studentId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Diary entries
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/DiaryEntry"
+    post:
+      operationId: addDiaryEntry
+      tags: [diary]
+      summary: Add diary entry
+      parameters:
+        - name: studentId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateDiaryRequest"
+      responses:
+        "201":
+          description: Diary entry created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DiaryEntry"
+
+  /syllabus/{studentId}:
+    get:
+      operationId: getStudentSyllabus
+      tags: [syllabus]
+      summary: Get syllabus for a student
+      parameters:
+        - name: studentId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Syllabus entries
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SyllabusEntry"
+    post:
+      operationId: addSyllabusEntry
+      tags: [syllabus]
+      summary: Add/update syllabus entry
+      parameters:
+        - name: studentId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateSyllabusRequest"
+      responses:
+        "201":
+          description: Syllabus entry created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SyllabusEntry"
+
+  /timetable/{classId}:
+    get:
+      operationId: getTimetable
+      tags: [timetable]
+      summary: Get timetable for a class
+      parameters:
+        - name: classId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Timetable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Timetable"
+    put:
+      operationId: updateTimetable
+      tags: [timetable]
+      summary: Update timetable for a class
+      parameters:
+        - name: classId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateTimetableRequest"
+      responses:
+        "200":
+          description: Timetable updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Timetable"
+
+  /progress/{studentId}:
+    get:
+      operationId: getStudentProgress
+      tags: [progress]
+      summary: Get progress for a student
+      parameters:
+        - name: studentId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Progress data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Progress"
+    put:
+      operationId: updateStudentProgress
+      tags: [progress]
+      summary: Update progress for a student
+      parameters:
+        - name: studentId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateProgressRequest"
+      responses:
+        "200":
+          description: Progress updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Progress"
+
+  /admin/seed:
+    post:
+      operationId: seedData
+      tags: [admin]
+      summary: Seed initial data (admin only)
+      responses:
+        "200":
+          description: Data seeded
+
 components:
   schemas:
     HealthStatus:
@@ -31,6 +509,280 @@ components:
       properties:
         status:
           type: string
-      required:
-        - status
+      required: [status]
 
+    ErrorResponse:
+      type: object
+      properties:
+        message:
+          type: string
+      required: [message]
+
+    LoginRequest:
+      type: object
+      properties:
+        role:
+          type: string
+          enum: [admin, teacher, student]
+        id:
+          type: string
+        password:
+          type: string
+      required: [role, id, password]
+
+    LoginResponse:
+      type: object
+      properties:
+        role:
+          type: string
+        id:
+          type: string
+        name:
+          type: string
+      required: [role, id, name]
+
+    Student:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        class:
+          type: string
+        father:
+          type: string
+        phone:
+          type: string
+        dob:
+          type: string
+        address:
+          type: string
+        rollNo:
+          type: string
+      required: [id, name, class, father, phone, dob, address, rollNo]
+
+    CreateStudentRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        password:
+          type: string
+        class:
+          type: string
+        father:
+          type: string
+        phone:
+          type: string
+        dob:
+          type: string
+        address:
+          type: string
+        rollNo:
+          type: string
+      required: [name, password, class, father, phone, dob, address, rollNo]
+
+    Teacher:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        subject:
+          type: string
+        joining:
+          type: string
+        salary:
+          type: number
+        phone:
+          type: string
+        address:
+          type: string
+        classes:
+          type: array
+          items:
+            type: string
+      required: [id, name, subject, joining, salary, phone, address, classes]
+
+    CreateTeacherRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        password:
+          type: string
+        subject:
+          type: string
+        joining:
+          type: string
+        salary:
+          type: number
+        phone:
+          type: string
+        address:
+          type: string
+        classes:
+          type: array
+          items:
+            type: string
+      required: [name, password, subject, joining, salary, phone, address, classes]
+
+    FeeRecord:
+      type: object
+      properties:
+        id:
+          type: integer
+        studentId:
+          type: string
+        month:
+          type: string
+        amount:
+          type: number
+        paid:
+          type: boolean
+        paidDate:
+          type: string
+          nullable: true
+      required: [id, studentId, month, amount, paid]
+
+    CreateFeeRequest:
+      type: object
+      properties:
+        month:
+          type: string
+        amount:
+          type: number
+        paid:
+          type: boolean
+        paidDate:
+          type: string
+          nullable: true
+      required: [month, amount, paid]
+
+    UpdateFeeRequest:
+      type: object
+      properties:
+        paid:
+          type: boolean
+        paidDate:
+          type: string
+          nullable: true
+      required: [paid]
+
+    DiaryEntry:
+      type: object
+      properties:
+        id:
+          type: integer
+        studentId:
+          type: string
+        date:
+          type: string
+        subject:
+          type: string
+        note:
+          type: string
+        teacherId:
+          type: string
+      required: [id, studentId, date, subject, note, teacherId]
+
+    CreateDiaryRequest:
+      type: object
+      properties:
+        date:
+          type: string
+        subject:
+          type: string
+        note:
+          type: string
+      required: [date, subject, note]
+
+    SyllabusEntry:
+      type: object
+      properties:
+        id:
+          type: integer
+        studentId:
+          type: string
+        subject:
+          type: string
+        totalChapters:
+          type: integer
+        doneChapters:
+          type: integer
+        lastTopic:
+          type: string
+        teacherId:
+          type: string
+      required: [id, studentId, subject, totalChapters, doneChapters, lastTopic, teacherId]
+
+    CreateSyllabusRequest:
+      type: object
+      properties:
+        subject:
+          type: string
+        totalChapters:
+          type: integer
+        doneChapters:
+          type: integer
+        lastTopic:
+          type: string
+      required: [subject, totalChapters, doneChapters, lastTopic]
+
+    Timetable:
+      type: object
+      properties:
+        classId:
+          type: string
+        schedule:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              type: string
+      required: [classId, schedule]
+
+    UpdateTimetableRequest:
+      type: object
+      properties:
+        schedule:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              type: string
+      required: [schedule]
+
+    Progress:
+      type: object
+      properties:
+        studentId:
+          type: string
+        attendance:
+          type: number
+        testAvg:
+          type: number
+        rank:
+          type: integer
+        remarks:
+          type: string
+        grade:
+          type: string
+      required: [studentId, attendance, testAvg, rank, remarks, grade]
+
+    UpdateProgressRequest:
+      type: object
+      properties:
+        attendance:
+          type: number
+        testAvg:
+          type: number
+        rank:
+          type: integer
+        remarks:
+          type: string
+        grade:
+          type: string
+      required: [attendance, testAvg, rank, remarks, grade]
