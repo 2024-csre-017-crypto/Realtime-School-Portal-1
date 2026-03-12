@@ -1,4 +1,6 @@
 import { Router } from "express";
+import multer from "multer";
+import * as XLSX from "xlsx";
 import { db } from "@workspace/db";
 import {
   studentsTable,
@@ -12,6 +14,7 @@ import {
 import { requireAuth } from "../lib/session";
 
 const router = Router();
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
 
 router.post("/seed", async (req, res) => {
   const user = requireAuth(req, res);
@@ -111,6 +114,236 @@ router.post("/seed", async (req, res) => {
   ]);
 
   res.json({ message: "Demo data seeded successfully!" });
+});
+
+// ─── EXCEL IMPORT ─────────────────────────────────────────────────────────────
+router.post("/import", upload.single("file"), async (req, res) => {
+  const user = requireAuth(req, res);
+  if (!user || user.role !== "admin") {
+    res.status(403).json({ message: "Admin only" });
+    return;
+  }
+
+  if (!req.file) {
+    res.status(400).json({ message: "No file uploaded" });
+    return;
+  }
+
+  const workbook = XLSX.read(req.file.buffer, { type: "buffer" });
+
+  const result = {
+    students: { imported: 0, skipped: 0, errors: [] as string[] },
+    teachers: { imported: 0, skipped: 0, errors: [] as string[] },
+    fees: { imported: 0, skipped: 0, errors: [] as string[] },
+  };
+
+  // ── Students sheet ──────────────────────────────────────────────────────────
+  const studentsSheet = workbook.Sheets["Students"] || workbook.Sheets["students"] || workbook.Sheets["STUDENTS"];
+  if (studentsSheet) {
+    const rows = XLSX.utils.sheet_to_json<Record<string, string>>(studentsSheet);
+    for (const row of rows) {
+      try {
+        const id = String(row["ID"] || row["id"] || "").trim();
+        const name = String(row["Name"] || row["name"] || "").trim();
+        const password = String(row["Password"] || row["password"] || "1234").trim();
+        const cls = String(row["Class"] || row["class"] || "").trim();
+        const father = String(row["Father"] || row["father"] || row["Father Name"] || "").trim();
+        const phone = String(row["Phone"] || row["phone"] || "").trim();
+        const dob = String(row["DOB"] || row["dob"] || row["Date of Birth"] || "").trim();
+        const address = String(row["Address"] || row["address"] || "").trim();
+        const rollNo = String(row["Roll No"] || row["rollNo"] || row["RollNo"] || row["Roll"] || "").trim();
+
+        if (!name || !cls) {
+          result.students.skipped++;
+          continue;
+        }
+
+        let finalId = id;
+        if (!finalId) {
+          const allStudents = await db.select({ id: studentsTable.id }).from(studentsTable);
+          finalId = `STU${String(allStudents.length + 1).padStart(3, "0")}`;
+        }
+
+        // Upsert: insert or update
+        const existing = await db.select({ id: studentsTable.id }).from(studentsTable)
+          .where((t) => {
+            const { eq } = require("drizzle-orm");
+            return eq(t.id, finalId);
+          });
+
+        if (existing.length > 0) {
+          const { eq } = await import("drizzle-orm");
+          await db.update(studentsTable)
+            .set({ name, class: cls, father, phone, dob, address, rollNo, ...(password ? { password } : {}) })
+            .where(eq(studentsTable.id, finalId));
+        } else {
+          await db.insert(studentsTable).values({
+            id: finalId,
+            name,
+            password,
+            class: cls,
+            father,
+            phone,
+            dob,
+            address,
+            rollNo,
+          });
+        }
+        result.students.imported++;
+      } catch (e: unknown) {
+        result.students.errors.push(String(e));
+      }
+    }
+  }
+
+  // ── Teachers sheet ──────────────────────────────────────────────────────────
+  const teachersSheet = workbook.Sheets["Teachers"] || workbook.Sheets["teachers"] || workbook.Sheets["TEACHERS"];
+  if (teachersSheet) {
+    const rows = XLSX.utils.sheet_to_json<Record<string, string>>(teachersSheet);
+    for (const row of rows) {
+      try {
+        const id = String(row["ID"] || row["id"] || "").trim();
+        const name = String(row["Name"] || row["name"] || "").trim();
+        const password = String(row["Password"] || row["password"] || "1234").trim();
+        const subject = String(row["Subject"] || row["subject"] || "").trim();
+        const joining = String(row["Joining"] || row["joining"] || row["Joining Date"] || "").trim();
+        const salary = Number(row["Salary"] || row["salary"] || 0);
+        const phone = String(row["Phone"] || row["phone"] || "").trim();
+        const address = String(row["Address"] || row["address"] || "").trim();
+        const classesRaw = String(row["Classes"] || row["classes"] || "").trim();
+        const classes = classesRaw ? classesRaw.split(",").map((c) => c.trim()).filter(Boolean) : [];
+
+        if (!name || !subject) {
+          result.teachers.skipped++;
+          continue;
+        }
+
+        let finalId = id;
+        if (!finalId) {
+          const allTeachers = await db.select({ id: teachersTable.id }).from(teachersTable);
+          finalId = `T${String(allTeachers.length + 1).padStart(3, "0")}`;
+        }
+
+        const { eq } = await import("drizzle-orm");
+        const existing = await db.select({ id: teachersTable.id }).from(teachersTable)
+          .where(eq(teachersTable.id, finalId));
+
+        if (existing.length > 0) {
+          await db.update(teachersTable)
+            .set({ name, subject, joining, salary, phone, address, classes, ...(password ? { password } : {}) })
+            .where(eq(teachersTable.id, finalId));
+        } else {
+          await db.insert(teachersTable).values({
+            id: finalId,
+            name,
+            password,
+            subject,
+            joining,
+            salary,
+            phone,
+            address,
+            classes,
+          });
+        }
+        result.teachers.imported++;
+      } catch (e: unknown) {
+        result.teachers.errors.push(String(e));
+      }
+    }
+  }
+
+  // ── Fees sheet ───────────────────────────────────────────────────────────────
+  const feesSheet = workbook.Sheets["Fees"] || workbook.Sheets["fees"] || workbook.Sheets["FEES"];
+  if (feesSheet) {
+    const rows = XLSX.utils.sheet_to_json<Record<string, string>>(feesSheet);
+    for (const row of rows) {
+      try {
+        const studentId = String(row["Student ID"] || row["studentId"] || row["StudentID"] || "").trim();
+        const month = String(row["Month"] || row["month"] || "").trim();
+        const amount = Number(row["Amount"] || row["amount"] || 0);
+        const paidRaw = String(row["Paid"] || row["paid"] || "false").trim().toLowerCase();
+        const paid = paidRaw === "true" || paidRaw === "yes" || paidRaw === "1";
+        const paidDate = String(row["Paid Date"] || row["paidDate"] || row["PaidDate"] || "").trim() || null;
+
+        if (!studentId || !month) {
+          result.fees.skipped++;
+          continue;
+        }
+
+        // Check student exists
+        const { eq, and } = await import("drizzle-orm");
+        const studentExists = await db.select({ id: studentsTable.id }).from(studentsTable)
+          .where(eq(studentsTable.id, studentId));
+
+        if (studentExists.length === 0) {
+          result.fees.skipped++;
+          result.fees.errors.push(`Student ${studentId} not found, skipping fee row`);
+          continue;
+        }
+
+        // Check if fee for this month already exists
+        const existingFee = await db.select({ id: feesTable.id }).from(feesTable)
+          .where(and(eq(feesTable.studentId, studentId), eq(feesTable.month, month)));
+
+        if (existingFee.length > 0) {
+          await db.update(feesTable)
+            .set({ amount, paid, paidDate: paidDate || null })
+            .where(and(eq(feesTable.studentId, studentId), eq(feesTable.month, month)));
+        } else {
+          await db.insert(feesTable).values({ studentId, month, amount, paid, paidDate: paidDate || null });
+        }
+        result.fees.imported++;
+      } catch (e: unknown) {
+        result.fees.errors.push(String(e));
+      }
+    }
+  }
+
+  res.json({
+    message: "Import complete",
+    result,
+    sheetsFound: workbook.SheetNames,
+  });
+});
+
+// ─── DOWNLOAD TEMPLATE ────────────────────────────────────────────────────────
+router.get("/import/template", (req, res) => {
+  const user = requireAuth(req, res);
+  if (!user || user.role !== "admin") {
+    res.status(403).json({ message: "Admin only" });
+    return;
+  }
+
+  const workbook = XLSX.utils.book_new();
+
+  const studentsData = [
+    ["ID", "Name", "Password", "Class", "Father", "Phone", "DOB", "Address", "Roll No"],
+    ["STU001", "Ahmad Ali", "ahmad123", "10-A", "Ali Hassan", "0303-1111111", "2010-03-15", "Lahore", "01"],
+    ["STU005", "Sara Bibi", "sara123", "9-A", "Bibi Khan", "0307-5555555", "2011-06-20", "Lahore", "05"],
+  ];
+  const studentsWS = XLSX.utils.aoa_to_sheet(studentsData);
+  XLSX.utils.book_append_sheet(workbook, studentsWS, "Students");
+
+  const teachersData = [
+    ["ID", "Name", "Password", "Subject", "Joining", "Salary", "Phone", "Address", "Classes"],
+    ["T001", "Sana Ahmed", "sana123", "Science", "2019-03-15", "45000", "0300-1111111", "Lahore", "9-A,9-B,10-A"],
+    ["T004", "New Teacher", "pass123", "History", "2024-01-01", "40000", "0300-9999999", "Lahore", "9-A,10-A"],
+  ];
+  const teachersWS = XLSX.utils.aoa_to_sheet(teachersData);
+  XLSX.utils.book_append_sheet(workbook, teachersWS, "Teachers");
+
+  const feesData = [
+    ["Student ID", "Month", "Amount", "Paid", "Paid Date"],
+    ["STU001", "March 2026", "4500", "false", ""],
+    ["STU002", "March 2026", "4500", "true", "2026-03-05"],
+  ];
+  const feesWS = XLSX.utils.aoa_to_sheet(feesData);
+  XLSX.utils.book_append_sheet(workbook, feesWS, "Fees");
+
+  const buffer = XLSX.write(workbook, { type: "buffer", bookType: "xlsx" });
+  res.setHeader("Content-Disposition", "attachment; filename=school-portal-template.xlsx");
+  res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+  res.send(buffer);
 });
 
 export default router;
