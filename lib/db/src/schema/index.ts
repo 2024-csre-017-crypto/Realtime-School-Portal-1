@@ -13,6 +13,7 @@ export const studentsTable = pgTable("students", {
   address: text("address").notNull(),
   rollNo: text("roll_no").notNull(),
   photo: text("photo"),
+  session: text("session"),
 });
 
 export const teachersTable = pgTable("teachers", {

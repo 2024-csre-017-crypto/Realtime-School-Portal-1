@@ -37,6 +37,7 @@ const selectStudent = (s: typeof studentsTable.$inferSelect) => ({
   address: s.address,
   rollNo: s.rollNo,
   photo: s.photo ?? null,
+  session: s.session ?? null,
 });
 
 router.get("/", async (req, res) => {
@@ -52,11 +53,11 @@ router.post("/", async (req, res) => {
     res.status(403).json({ message: "Admin only" });
     return;
   }
-  const { name, password, class: cls, father, phone, dob, address, rollNo } = req.body;
+  const { name, password, class: cls, father, phone, dob, address, rollNo, session } = req.body;
   const allStudents = await db.select({ id: studentsTable.id }).from(studentsTable);
   const id = `STU${String(allStudents.length + 1).padStart(3, "0")}`;
   const [student] = await db.insert(studentsTable).values({
-    id, name, password, class: cls, father, phone, dob, address, rollNo,
+    id, name, password, class: cls, father, phone, dob, address, rollNo, session: session || null,
   }).returning();
   res.status(201).json(selectStudent(student));
 });
@@ -77,8 +78,8 @@ router.put("/:studentId", async (req, res) => {
     return;
   }
   const { studentId } = req.params;
-  const { name, password, class: cls, father, phone, dob, address, rollNo } = req.body;
-  const updateData: Record<string, unknown> = { name, class: cls, father, phone, dob, address, rollNo };
+  const { name, password, class: cls, father, phone, dob, address, rollNo, session } = req.body;
+  const updateData: Record<string, unknown> = { name, class: cls, father, phone, dob, address, rollNo, session: session || null };
   if (password) updateData.password = password;
   const [student] = await db.update(studentsTable).set(updateData)
     .where(eq(studentsTable.id, studentId)).returning();

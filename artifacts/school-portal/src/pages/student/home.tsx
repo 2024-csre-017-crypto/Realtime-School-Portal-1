@@ -1,7 +1,7 @@
 import { useRef, useState } from "react";
 import { useGetMe, useGetStudent } from "@workspace/api-client-react";
 import { Card } from "@/components/ui-elements";
-import { User, Phone, MapPin, Hash, BookOpen, Camera, Loader2, CheckCircle } from "lucide-react";
+import { User, Phone, MapPin, Hash, BookOpen, Camera, Loader2, CheckCircle, CalendarRange } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 
 export default function StudentHome() {
@@ -153,6 +153,18 @@ export default function StudentHome() {
               </p>
               <p className="font-semibold text-lg">{student.address}</p>
             </div>
+            {(student as any).session && (
+              <div className="col-span-1 sm:col-span-2">
+                <p className="text-sm text-muted-foreground flex items-center gap-2 mb-1">
+                  <CalendarRange className="w-4 h-4" /> Session
+                </p>
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-bold
+                  bg-gradient-to-r from-violet-600/30 to-cyan-600/30 text-violet-300 border border-violet-500/30">
+                  <CalendarRange className="w-4 h-4" />
+                  {(student as any).session}
+                </span>
+              </div>
+            )}
           </div>
         </div>
 
