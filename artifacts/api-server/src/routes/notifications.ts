@@ -6,40 +6,33 @@ import { requireAuth } from "../lib/session";
 
 const router = Router();
 
-// Send SMS via Twilio REST API (no SDK needed)
-async function sendTwilioSMS(to: string, body: string): Promise<{ ok: boolean; error?: string }> {
-  const accountSid = process.env.TWILIO_ACCOUNT_SID;
-  const authToken = process.env.TWILIO_AUTH_TOKEN;
-  const fromNumber = process.env.TWILIO_FROM_NUMBER;
+// Normalize Pakistani phone number to international format
+function normalizePhone(to: string): string {
+  let n = to.replace(/\s+/g, "").replace(/-/g, "");
+  if (n.startsWith("0")) n = "92" + n.slice(1);
+  else if (n.startsWith("+")) n = n.slice(1);
+  else if (!n.startsWith("92")) n = "92" + n;
+  return n;
+}
 
-  if (!accountSid || !authToken || !fromNumber) {
-    return { ok: false, error: "Twilio not configured" };
-  }
+// Send WhatsApp message via Fonnte API
+async function sendWhatsApp(to: string, body: string): Promise<{ ok: boolean; error?: string }> {
+  const token = process.env.FONNTE_TOKEN;
+  if (!token) return { ok: false, error: "Fonnte not configured" };
 
-  // Normalize Pakistani number: 03xx → +923xx
-  let normalized = to.replace(/\s+/g, "").replace(/-/g, "");
-  if (normalized.startsWith("0")) normalized = "+92" + normalized.slice(1);
-  else if (!normalized.startsWith("+")) normalized = "+92" + normalized;
-
+  const number = normalizePhone(to);
   try {
-    const credentials = Buffer.from(`${accountSid}:${authToken}`).toString("base64");
-    const res = await fetch(
-      `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`,
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Basic ${credentials}`,
-          "Content-Type": "application/x-www-form-urlencoded",
-        },
-        body: new URLSearchParams({ To: normalized, From: fromNumber, Body: body }).toString(),
-      }
-    );
+    const res = await fetch("https://api.fonnte.com/send", {
+      method: "POST",
+      headers: {
+        Authorization: token,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ target: number, message: body, countryCode: "92" }),
+    });
     const data = await res.json() as any;
-    if (!res.ok) {
-      if (data?.code === 21608) {
-        return { ok: false, error: `Trial: number ${normalized} not verified in Twilio console` };
-      }
-      return { ok: false, error: data?.message || "SMS failed" };
+    if (!res.ok || data?.status === false) {
+      return { ok: false, error: data?.reason || data?.message || "WhatsApp send failed" };
     }
     return { ok: true };
   } catch (err: any) {
@@ -102,16 +95,17 @@ router.post("/send", async (req, res) => {
       .from(studentsTable);
   }
 
-  const isTwilioConfigured = !!(process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN && process.env.TWILIO_FROM_NUMBER);
+
+  const isWhatsAppConfigured = !!process.env.FONNTE_TOKEN;
   let smsStatus = "no_sms";
   let smsError: string | null = null;
   let sentCount = 0;
   let failedCount = 0;
 
-  if (isTwilioConfigured) {
-    const smsBody = `The Excel School\n${title}\n\n${message}`;
+  if (isWhatsAppConfigured) {
+    const waBody = `*The Excel School*\n*${title}*\n\n${message}\n\n_Principal: Sir Ahmad Raza_\n_+92 306 2549080_`;
     const results = await Promise.allSettled(
-      students.map(s => sendTwilioSMS(s.phone, smsBody))
+      students.map(s => sendWhatsApp(s.phone, waBody))
     );
     results.forEach(r => {
       if (r.status === "fulfilled" && r.value.ok) sentCount++;
@@ -135,9 +129,9 @@ router.post("/send", async (req, res) => {
   res.json({
     notification,
     recipients: students.length,
-    smsEnabled: isTwilioConfigured,
-    sentCount: isTwilioConfigured ? sentCount : 0,
-    failedCount: isTwilioConfigured ? failedCount : 0,
+    smsEnabled: isWhatsAppConfigured,
+    sentCount,
+    failedCount,
   });
 });
 

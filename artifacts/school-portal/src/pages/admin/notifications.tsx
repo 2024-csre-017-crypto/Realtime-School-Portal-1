@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Card, Button, Input, Modal } from "@/components/ui-elements";
-import { Send, Bell, Users, BookOpen, Trash2, CheckCircle, XCircle, Clock, MessageSquare, ChevronDown } from "lucide-react";
+import { Send, Bell, Users, BookOpen, Trash2, CheckCircle, XCircle, Clock, MessageSquare, ChevronDown, Smartphone } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 
 interface Recipient { id: string; name: string; phone: string; class: string; father: string; }
@@ -69,7 +69,7 @@ export default function AdminNotifications() {
   };
 
   const smsStatusBadge = (status: string) => {
-    if (status === "sent") return <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400"><CheckCircle className="w-3 h-3" />SMS Sent</span>;
+    if (status === "sent") return <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400"><CheckCircle className="w-3 h-3" />WhatsApp Sent</span>;
     if (status === "partial") return <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-400"><Clock className="w-3 h-3" />Partial</span>;
     if (status === "failed") return <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-red-500/15 text-red-400"><XCircle className="w-3 h-3" />Failed</span>;
     return <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-white/10 text-muted-foreground"><Bell className="w-3 h-3" />Logged Only</span>;
@@ -82,7 +82,7 @@ export default function AdminNotifications() {
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-display font-bold">Notifications</h1>
-        <p className="text-muted-foreground mt-1">Parents ko SMS ya notification bhejein</p>
+        <p className="text-muted-foreground mt-1">Parents ko WhatsApp notification bhejein</p>
       </div>
 
       <div className="grid md:grid-cols-5 gap-6">
@@ -189,35 +189,38 @@ export default function AdminNotifications() {
             </Button>
 
             {result && (
-              <div className={`flex items-center gap-3 p-4 rounded-xl text-sm ${result.sent ? "bg-emerald-500/10 border border-emerald-500/20 text-emerald-400" : "bg-red-500/10 border border-red-500/20 text-red-400"}`}>
-                {result.sent ? <CheckCircle className="w-5 h-5 shrink-0" /> : <XCircle className="w-5 h-5 shrink-0" />}
+              <div className={`flex items-center gap-3 p-4 rounded-xl text-sm ${result.sent ? "bg-emerald-500/10 border border-emerald-500/20 text-emerald-400" : "bg-amber-500/10 border border-amber-500/20 text-amber-400"}`}>
+                {result.sent ? <CheckCircle className="w-5 h-5 shrink-0" /> : <Bell className="w-5 h-5 shrink-0" />}
                 <div>
                   {result.sent
-                    ? <>Notification save ho gayi — <strong>{result.count} parents</strong> ke liye.
-                        {result.smsEnabled ? " SMS bhi bhej diye!" : " (SMS ke liye Twilio configure karein)"}</>
-                    : "Kuch error aaya. Dobara try karein."}
+                    ? <>Notification <strong>{result.count} parents</strong> ko WhatsApp par bhej di gayi!</>
+                    : <>Notification portal mein save ho gayi. <strong>WhatsApp ke liye Fonnte setup karein</strong> (neechay instructions hain).</>}
                 </div>
               </div>
             )}
           </Card>
 
-          {/* Trial account notice */}
-          <Card className="p-4 border border-amber-500/30 bg-amber-500/5">
+          {/* Fonnte WhatsApp Setup */}
+          <Card className="p-4 border border-green-500/30 bg-green-500/5">
             <div className="flex gap-3">
-              <div className="w-8 h-8 rounded-lg bg-amber-500/20 flex items-center justify-center shrink-0 text-amber-400 text-lg font-bold">!</div>
-              <div className="space-y-2">
-                <p className="text-sm font-semibold text-amber-300">Twilio Trial Account — Important</p>
+              <div className="w-8 h-8 rounded-lg bg-green-500/20 flex items-center justify-center shrink-0">
+                <Smartphone className="w-4 h-4 text-green-400" />
+              </div>
+              <div className="space-y-2.5">
+                <p className="text-sm font-semibold text-green-300">WhatsApp Notifications — Fonnte Setup (Free)</p>
                 <p className="text-xs text-muted-foreground leading-relaxed">
-                  Aapka Twilio account <strong className="text-amber-300">Trial</strong> mode mein hai. Trial mein SMS sirf un numbers ko ja sakta hai jo Twilio console mein <strong>verify</strong> hon.
+                  Fonnte aapke <strong className="text-white">apne WhatsApp</strong> se parents ko message bhejta hai — bilkul free hai. Ek baar setup karo, phir button se poore school ko WhatsApp chala jaye.
                 </p>
-                <p className="text-xs text-muted-foreground leading-relaxed">
-                  <strong className="text-white">Parents ke numbers verify karne ka tarika:</strong><br />
-                  1. <a href="https://console.twilio.com/us1/develop/phone-numbers/manage/verified" target="_blank" rel="noopener noreferrer" className="text-primary underline">console.twilio.com → Verified Caller IDs</a> par jayein<br />
-                  2. Har parent ka Pakistani number add karein (e.g. <code className="text-amber-300">+923001234567</code>)<br />
-                  3. OTP se verify karein — phir SMS receive honge
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  Ya Twilio paid plan lein to sab numbers par bina verify ke SMS bhej saktay hain.
+                <div className="text-xs text-muted-foreground leading-relaxed space-y-1">
+                  <p className="font-semibold text-white">Setup karne ka tarika:</p>
+                  <p>1. <a href="https://fonnte.com" target="_blank" rel="noopener noreferrer" className="text-green-400 underline font-medium">fonnte.com</a> par free account banao</p>
+                  <p>2. "Add Device" par click karo — QR code aayega</p>
+                  <p>3. WhatsApp open karo → Linked Devices → QR scan karo</p>
+                  <p>4. Dashboard mein <strong className="text-green-300">Token</strong> copy karo</p>
+                  <p>5. Replit Secrets mein <code className="text-green-300 bg-white/10 px-1 rounded">FONNTE_TOKEN</code> ke naam se save karo</p>
+                </div>
+                <p className="text-xs text-muted-foreground/60">
+                  Setup ke baad notifications seedha parents ke WhatsApp inbox mein jayengi — jaise colleges mein aata hai.
                 </p>
               </div>
             </div>
