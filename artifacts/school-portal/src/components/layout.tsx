@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 import { 
   Home, BookOpen, GraduationCap, Calendar, CreditCard, 
   TrendingUp, Users, Settings, LayoutDashboard, LogOut, 
-  BookMarked
+  BookMarked, Bell
 } from "lucide-react";
 import { motion } from "framer-motion";
 
@@ -34,6 +34,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
       { path: "/admin/students", label: "Students", icon: Users },
       { path: "/admin/teachers", label: "Teachers", icon: BookMarked },
       { path: "/admin/fees", label: "Fees", icon: CreditCard },
+      { path: "/admin/notifications", label: "Notifications", icon: Bell },
       { path: "/admin/settings", label: "Settings", icon: Settings },
     ];
   } else if (user.role === "teacher") {

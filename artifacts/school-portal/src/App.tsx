@@ -11,6 +11,7 @@ import AdminStudents from "@/pages/admin/students";
 import AdminTeachers from "@/pages/admin/teachers";
 import AdminFees from "@/pages/admin/fees";
 import AdminSettings from "@/pages/admin/settings";
+import AdminNotifications from "@/pages/admin/notifications";
 
 // Teacher Pages
 import TeacherHome from "@/pages/teacher/home";
@@ -55,6 +56,9 @@ function Router() {
       </Route>
       <Route path="/admin/settings">
         {() => <Layout><AdminSettings /></Layout>}
+      </Route>
+      <Route path="/admin/notifications">
+        {() => <Layout><AdminNotifications /></Layout>}
       </Route>
 
       {/* Teacher Routes */}

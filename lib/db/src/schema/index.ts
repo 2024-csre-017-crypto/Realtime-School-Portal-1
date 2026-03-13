@@ -70,6 +70,20 @@ export const progressTable = pgTable("progress", {
   grade: text("grade").notNull().default(""),
 });
 
+export const notificationsTable = pgTable("notifications", {
+  id: serial("id").primaryKey(),
+  title: text("title").notNull(),
+  message: text("message").notNull(),
+  targetType: text("target_type").notNull(),
+  targetClass: text("target_class"),
+  recipientCount: integer("recipient_count").notNull().default(0),
+  sentAt: text("sent_at").notNull(),
+  smsStatus: text("sms_status").notNull().default("pending"),
+  smsError: text("sms_error"),
+});
+
+export type Notification = typeof notificationsTable.$inferSelect;
+
 export const insertStudentSchema = createInsertSchema(studentsTable);
 export const insertTeacherSchema = createInsertSchema(teachersTable);
 export const insertFeeSchema = createInsertSchema(feesTable).omit({ id: true });

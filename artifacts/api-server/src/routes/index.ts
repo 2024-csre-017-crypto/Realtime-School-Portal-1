@@ -9,6 +9,7 @@ import syllabusRouter from "./syllabus";
 import timetableRouter from "./timetable";
 import progressRouter from "./progress";
 import adminRouter from "./admin";
+import notificationsRouter from "./notifications";
 
 const router: IRouter = Router();
 
@@ -22,5 +23,6 @@ router.use("/syllabus", syllabusRouter);
 router.use("/timetable", timetableRouter);
 router.use("/progress", progressRouter);
 router.use("/admin", adminRouter);
+router.use("/admin/notifications", notificationsRouter);
 
 export default router;
