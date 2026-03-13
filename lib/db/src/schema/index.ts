@@ -54,7 +54,22 @@ export const syllabusTable = pgTable("syllabus", {
   doneChapters: integer("done_chapters").notNull(),
   lastTopic: text("last_topic").notNull(),
   teacherId: text("teacher_id").notNull().references(() => teachersTable.id, { onDelete: "cascade" }),
+  bookImage: text("book_image"),
 });
+
+export const testResultsTable = pgTable("test_results", {
+  id: serial("id").primaryKey(),
+  studentId: text("student_id").notNull().references(() => studentsTable.id, { onDelete: "cascade" }),
+  teacherId: text("teacher_id").notNull().references(() => teachersTable.id, { onDelete: "cascade" }),
+  subject: text("subject").notNull(),
+  title: text("title").notNull(),
+  date: text("date").notNull(),
+  totalMarks: real("total_marks").notNull(),
+  obtainedMarks: real("obtained_marks").notNull(),
+  image: text("image"),
+});
+
+export type TestResult = typeof testResultsTable.$inferSelect;
 
 export const timetableTable = pgTable("timetable", {
   classId: text("class_id").primaryKey(),
