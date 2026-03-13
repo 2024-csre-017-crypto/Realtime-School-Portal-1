@@ -201,19 +201,23 @@ export default function AdminNotifications() {
             )}
           </Card>
 
-          {/* SMS Setup Info */}
-          <Card className="p-4 border border-violet-500/20 bg-violet-500/5">
+          {/* Trial account notice */}
+          <Card className="p-4 border border-amber-500/30 bg-amber-500/5">
             <div className="flex gap-3">
-              <div className="w-8 h-8 rounded-lg bg-violet-500/20 flex items-center justify-center shrink-0">
-                <Bell className="w-4 h-4 text-violet-400" />
-              </div>
-              <div>
-                <p className="text-sm font-semibold text-violet-300 mb-1">Real SMS Enable Karein (Twilio)</p>
+              <div className="w-8 h-8 rounded-lg bg-amber-500/20 flex items-center justify-center shrink-0 text-amber-400 text-lg font-bold">!</div>
+              <div className="space-y-2">
+                <p className="text-sm font-semibold text-amber-300">Twilio Trial Account — Important</p>
                 <p className="text-xs text-muted-foreground leading-relaxed">
-                  Real SMS bhejna ke liye Twilio account banana hoga (<strong>twilio.com</strong>).
-                  Phir Admin ne ye 3 secrets set karne hain:<br />
-                  <code className="text-violet-300">TWILIO_ACCOUNT_SID</code> · <code className="text-violet-300">TWILIO_AUTH_TOKEN</code> · <code className="text-violet-300">TWILIO_FROM_NUMBER</code><br />
-                  Agar set nahi hain to notifications sirf portal mein save hongi.
+                  Aapka Twilio account <strong className="text-amber-300">Trial</strong> mode mein hai. Trial mein SMS sirf un numbers ko ja sakta hai jo Twilio console mein <strong>verify</strong> hon.
+                </p>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  <strong className="text-white">Parents ke numbers verify karne ka tarika:</strong><br />
+                  1. <a href="https://console.twilio.com/us1/develop/phone-numbers/manage/verified" target="_blank" rel="noopener noreferrer" className="text-primary underline">console.twilio.com → Verified Caller IDs</a> par jayein<br />
+                  2. Har parent ka Pakistani number add karein (e.g. <code className="text-amber-300">+923001234567</code>)<br />
+                  3. OTP se verify karein — phir SMS receive honge
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Ya Twilio paid plan lein to sab numbers par bina verify ke SMS bhej saktay hain.
                 </p>
               </div>
             </div>

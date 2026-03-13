@@ -35,7 +35,12 @@ async function sendTwilioSMS(to: string, body: string): Promise<{ ok: boolean; e
       }
     );
     const data = await res.json() as any;
-    if (!res.ok) return { ok: false, error: data?.message || "SMS failed" };
+    if (!res.ok) {
+      if (data?.code === 21608) {
+        return { ok: false, error: `Trial: number ${normalized} not verified in Twilio console` };
+      }
+      return { ok: false, error: data?.message || "SMS failed" };
+    }
     return { ok: true };
   } catch (err: any) {
     return { ok: false, error: err.message };
