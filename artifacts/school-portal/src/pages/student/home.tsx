@@ -1,32 +1,94 @@
-import { useRef, useState } from "react";
+import { useRef, useState, useCallback } from "react";
 import { useGetMe, useGetStudent } from "@workspace/api-client-react";
-import { Card } from "@/components/ui-elements";
-import { User, Phone, MapPin, Hash, BookOpen, Camera, Loader2, CheckCircle, CalendarRange } from "lucide-react";
+import { Card, Button } from "@/components/ui-elements";
+import { User, Phone, MapPin, Hash, BookOpen, Camera, Loader2, CheckCircle, CalendarRange, ZoomIn, ZoomOut, RotateCw, Check, X } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
+import Cropper from "react-easy-crop";
+import type { Area, Point } from "react-easy-crop";
+
+async function getCroppedBlob(imageSrc: string, croppedAreaPixels: Area): Promise<Blob> {
+  const image = await new Promise<HTMLImageElement>((resolve, reject) => {
+    const img = new Image();
+    img.addEventListener("load", () => resolve(img));
+    img.addEventListener("error", reject);
+    img.src = imageSrc;
+  });
+
+  const canvas = document.createElement("canvas");
+  const size = Math.min(croppedAreaPixels.width, croppedAreaPixels.height, 512);
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext("2d")!;
+
+  ctx.drawImage(
+    image,
+    croppedAreaPixels.x,
+    croppedAreaPixels.y,
+    croppedAreaPixels.width,
+    croppedAreaPixels.height,
+    0,
+    0,
+    size,
+    size,
+  );
+
+  return new Promise((resolve, reject) => {
+    canvas.toBlob(blob => {
+      if (blob) resolve(blob);
+      else reject(new Error("Canvas toBlob failed"));
+    }, "image/jpeg", 0.92);
+  });
+}
 
 export default function StudentHome() {
   const { data: me } = useGetMe();
   const { data: student, isLoading } = useGetStudent(me?.id || "", { query: { enabled: !!me?.id } });
   const queryClient = useQueryClient();
   const photoInputRef = useRef<HTMLInputElement>(null);
+
   const [uploading, setUploading] = useState(false);
   const [uploadDone, setUploadDone] = useState(false);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
 
-  const handlePhotoUpload = async (file: File) => {
-    if (!me?.id) return;
+  const [cropSrc, setCropSrc] = useState<string | null>(null);
+  const [crop, setCrop] = useState<Point>({ x: 0, y: 0 });
+  const [zoom, setZoom] = useState(1);
+  const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null);
+
+  const onCropComplete = useCallback((_: Area, cap: Area) => {
+    setCroppedAreaPixels(cap);
+  }, []);
+
+  const handleFileSelected = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const url = URL.createObjectURL(file);
+    setCropSrc(url);
+    setCrop({ x: 0, y: 0 });
+    setZoom(1);
+    if (photoInputRef.current) photoInputRef.current.value = "";
+  };
+
+  const cancelCrop = () => {
+    if (cropSrc) URL.revokeObjectURL(cropSrc);
+    setCropSrc(null);
+  };
+
+  const confirmCrop = async () => {
+    if (!cropSrc || !croppedAreaPixels || !me?.id) return;
     setUploading(true);
     setUploadDone(false);
 
-    // Instant local preview
-    const reader = new FileReader();
-    reader.onload = (e) => setPhotoPreview(e.target?.result as string);
-    reader.readAsDataURL(file);
-
-    const formData = new FormData();
-    formData.append("photo", file);
-
     try {
+      const blob = await getCroppedBlob(cropSrc, croppedAreaPixels);
+      URL.revokeObjectURL(cropSrc);
+      setCropSrc(null);
+
+      const localUrl = URL.createObjectURL(blob);
+      setPhotoPreview(localUrl);
+
+      const formData = new FormData();
+      formData.append("photo", blob, "photo.jpg");
       const res = await fetch(`/api/students/${me.id}/photo`, {
         method: "POST",
         body: formData,
@@ -52,9 +114,7 @@ export default function StudentHome() {
   );
   if (!student) return <div>Profile not found.</div>;
 
-  const photoSrc = photoPreview || (student as any).photo
-    ? photoPreview || `${(student as any).photo}`
-    : null;
+  const photoSrc = photoPreview || (student as any).photo || null;
 
   return (
     <div className="space-y-6">
@@ -69,8 +129,6 @@ export default function StudentHome() {
         <div className="absolute -right-20 -top-20 w-64 h-64 bg-primary/20 rounded-full blur-3xl" />
 
         <div className="relative z-10 flex flex-col md:flex-row gap-8 items-start md:items-center">
-
-          {/* Profile Photo */}
           <div className="relative shrink-0 group">
             <div className="w-28 h-28 rounded-full overflow-hidden shadow-2xl shadow-primary/30 ring-4 ring-primary/20">
               {photoSrc ? (
@@ -82,7 +140,6 @@ export default function StudentHome() {
               )}
             </div>
 
-            {/* Upload overlay */}
             <button
               onClick={() => photoInputRef.current?.click()}
               disabled={uploading}
@@ -94,12 +151,11 @@ export default function StudentHome() {
               ) : (
                 <>
                   <Camera className="w-6 h-6 text-white" />
-                  <span className="text-[10px] text-white font-medium">Photo Change</span>
+                  <span className="text-[10px] text-white font-medium">Change Photo</span>
                 </>
               )}
             </button>
 
-            {/* Success tick */}
             {uploadDone && (
               <div className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-emerald-500 flex items-center justify-center shadow-lg">
                 <CheckCircle className="w-4 h-4 text-white" />
@@ -111,11 +167,10 @@ export default function StudentHome() {
               type="file"
               accept="image/*"
               className="hidden"
-              onChange={(e) => { const f = e.target.files?.[0]; if (f) handlePhotoUpload(f); }}
+              onChange={handleFileSelected}
             />
           </div>
 
-          {/* Info Grid */}
           <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-y-6 gap-x-12">
             <div>
               <p className="text-sm text-muted-foreground flex items-center gap-2 mb-1">
@@ -168,12 +223,65 @@ export default function StudentHome() {
           </div>
         </div>
 
-        {/* Upload hint */}
         <p className="relative z-10 text-xs text-muted-foreground mt-6 flex items-center gap-1.5">
           <Camera className="w-3.5 h-3.5" />
-          Profile photo change karne ke liye photo par hover karo
+          Hover over photo to change it — crop and zoom before saving
         </p>
       </Card>
+
+      {cropSrc && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex flex-col">
+          <div className="flex items-center justify-between px-4 py-3 bg-card/90 border-b border-white/10 flex-shrink-0">
+            <h2 className="font-display font-bold text-lg">Edit Photo</h2>
+            <button onClick={cancelCrop} className="text-muted-foreground hover:text-white transition-colors">
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+
+          <div className="relative flex-1 min-h-0">
+            <Cropper
+              image={cropSrc}
+              crop={crop}
+              zoom={zoom}
+              aspect={1}
+              cropShape="round"
+              showGrid={false}
+              onCropChange={setCrop}
+              onZoomChange={setZoom}
+              onCropComplete={onCropComplete}
+              style={{
+                containerStyle: { background: "#0a0a0f" },
+              }}
+            />
+          </div>
+
+          <div className="flex-shrink-0 px-6 py-4 bg-card/90 border-t border-white/10 space-y-4">
+            <div className="flex items-center gap-3">
+              <ZoomOut className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+              <input
+                type="range"
+                min={1}
+                max={3}
+                step={0.05}
+                value={zoom}
+                onChange={e => setZoom(Number(e.target.value))}
+                className="flex-1 accent-primary h-2 cursor-pointer"
+              />
+              <ZoomIn className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+              <span className="text-xs text-muted-foreground w-8 text-right">{zoom.toFixed(1)}×</span>
+            </div>
+
+            <div className="flex gap-3">
+              <Button variant="ghost" onClick={cancelCrop} className="flex-1">
+                <X className="w-4 h-4" /> Cancel
+              </Button>
+              <Button onClick={confirmCrop} className="flex-1" isLoading={uploading}>
+                <Check className="w-4 h-4" /> Save Photo
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

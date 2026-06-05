@@ -5,13 +5,81 @@ import { Card, Button, Input, Modal } from "@/components/ui-elements";
 import { Plus, Trash2, Search, Pencil, CalendarRange } from "lucide-react";
 
 const EMPTY_FORM = { name: "", password: "", class: "", father: "", phone: "", dob: "", address: "", rollNo: "", session: "" };
+type FormData = typeof EMPTY_FORM;
+
+interface StudentFormProps {
+  formData: FormData;
+  onChange: (d: FormData) => void;
+  onSubmit: (e: React.FormEvent) => void;
+  onCancel: () => void;
+  isPending: boolean;
+  isEdit: boolean;
+  submitLabel: string;
+}
+
+function StudentForm({ formData, onChange, onSubmit, onCancel, isPending, isEdit, submitLabel }: StudentFormProps) {
+  const set = (key: keyof FormData) => (e: React.ChangeEvent<HTMLInputElement>) =>
+    onChange({ ...formData, [key]: e.target.value });
+
+  return (
+    <form onSubmit={onSubmit} className="space-y-4">
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label className="block text-xs text-muted-foreground mb-1">Full Name *</label>
+          <Input value={formData.name} onChange={set("name")} required />
+        </div>
+        <div>
+          <label className="block text-xs text-muted-foreground mb-1">
+            Password {isEdit ? "(blank = no change)" : "*"}
+          </label>
+          <Input type="password" value={formData.password} onChange={set("password")} required={!isEdit} />
+        </div>
+        <div>
+          <label className="block text-xs text-muted-foreground mb-1">Class *</label>
+          <Input value={formData.class} onChange={set("class")} required placeholder="e.g. 10-A" />
+        </div>
+        <div>
+          <label className="block text-xs text-muted-foreground mb-1">Roll No *</label>
+          <Input value={formData.rollNo} onChange={set("rollNo")} required />
+        </div>
+        <div>
+          <label className="block text-xs text-muted-foreground mb-1">Father's Name *</label>
+          <Input value={formData.father} onChange={set("father")} required />
+        </div>
+        <div>
+          <label className="block text-xs text-muted-foreground mb-1">Phone *</label>
+          <Input value={formData.phone} onChange={set("phone")} required />
+        </div>
+        <div>
+          <label className="block text-xs text-muted-foreground mb-1">Date of Birth *</label>
+          <Input type="date" value={formData.dob} onChange={set("dob")} required />
+        </div>
+        <div>
+          <label className="block text-xs text-muted-foreground mb-1 flex items-center gap-1">
+            <CalendarRange className="w-3 h-3" /> Session
+          </label>
+          <Input value={formData.session} onChange={set("session")} placeholder="e.g. 2026-2027" />
+        </div>
+        <div className="col-span-2">
+          <label className="block text-xs text-muted-foreground mb-1">Address *</label>
+          <Input value={formData.address} onChange={set("address")} required />
+        </div>
+      </div>
+      <div className="pt-2 flex gap-3">
+        <Button type="button" variant="ghost" onClick={onCancel} className="flex-1">Cancel</Button>
+        <Button type="submit" className="flex-1" isLoading={isPending}>{submitLabel}</Button>
+      </div>
+    </form>
+  );
+}
 
 export default function AdminStudents() {
   const { data: students, isLoading } = useGetStudents();
   const [search, setSearch] = useState("");
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [editStudent, setEditStudent] = useState<(typeof students extends (infer T)[] | undefined ? T : never) | null>(null);
-  const [formData, setFormData] = useState(EMPTY_FORM);
+  const [editStudentId, setEditStudentId] = useState<string | null>(null);
+  const [editStudentName, setEditStudentName] = useState("");
+  const [formData, setFormData] = useState<FormData>(EMPTY_FORM);
 
   const queryClient = useQueryClient();
   const { mutate: create, isPending: isCreating } = useCreateStudent();
@@ -20,23 +88,27 @@ export default function AdminStudents() {
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ["/api/students"] });
 
+  const closeModals = () => {
+    setIsAddModalOpen(false);
+    setEditStudentId(null);
+    setEditStudentName("");
+    setFormData(EMPTY_FORM);
+  };
+
   const handleCreate = (e: React.FormEvent) => {
     e.preventDefault();
-    create({ data: formData as any }, {
-      onSuccess: () => { invalidate(); setIsAddModalOpen(false); setFormData(EMPTY_FORM); }
-    });
+    create({ data: formData as any }, { onSuccess: () => { invalidate(); closeModals(); } });
   };
 
   const handleEdit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!editStudent) return;
-    update({ studentId: editStudent.id, data: formData as any }, {
-      onSuccess: () => { invalidate(); setEditStudent(null); setFormData(EMPTY_FORM); }
-    });
+    if (!editStudentId) return;
+    update({ studentId: editStudentId, data: formData as any }, { onSuccess: () => { invalidate(); closeModals(); } });
   };
 
   const openEdit = (s: NonNullable<typeof students>[number]) => {
-    setEditStudent(s);
+    setEditStudentId(s.id);
+    setEditStudentName(s.name);
     setFormData({
       name: s.name, password: "", class: s.class, father: s.father,
       phone: s.phone, dob: s.dob, address: s.address, rollNo: s.rollNo,
@@ -50,55 +122,6 @@ export default function AdminStudents() {
     s.id.includes(search) ||
     ((s as any).session || "").includes(search)
   ) || [];
-
-  const StudentForm = ({ onSubmit, isPending, submitLabel }: { onSubmit: (e: React.FormEvent) => void; isPending: boolean; submitLabel: string }) => (
-    <form onSubmit={onSubmit} className="space-y-4">
-      <div className="grid grid-cols-2 gap-3">
-        <div>
-          <label className="block text-xs text-muted-foreground mb-1">Full Name *</label>
-          <Input value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} required />
-        </div>
-        <div>
-          <label className="block text-xs text-muted-foreground mb-1">Password {editStudent ? "(blank = no change)" : "*"}</label>
-          <Input type="password" value={formData.password} onChange={e => setFormData({ ...formData, password: e.target.value })} required={!editStudent} />
-        </div>
-        <div>
-          <label className="block text-xs text-muted-foreground mb-1">Class *</label>
-          <Input value={formData.class} onChange={e => setFormData({ ...formData, class: e.target.value })} required placeholder="e.g. 10-A" />
-        </div>
-        <div>
-          <label className="block text-xs text-muted-foreground mb-1">Roll No *</label>
-          <Input value={formData.rollNo} onChange={e => setFormData({ ...formData, rollNo: e.target.value })} required />
-        </div>
-        <div>
-          <label className="block text-xs text-muted-foreground mb-1">Father's Name *</label>
-          <Input value={formData.father} onChange={e => setFormData({ ...formData, father: e.target.value })} required />
-        </div>
-        <div>
-          <label className="block text-xs text-muted-foreground mb-1">Phone *</label>
-          <Input value={formData.phone} onChange={e => setFormData({ ...formData, phone: e.target.value })} required />
-        </div>
-        <div>
-          <label className="block text-xs text-muted-foreground mb-1">Date of Birth *</label>
-          <Input type="date" value={formData.dob} onChange={e => setFormData({ ...formData, dob: e.target.value })} required />
-        </div>
-        <div>
-          <label className="block text-xs text-muted-foreground mb-1 flex items-center gap-1">
-            <CalendarRange className="w-3 h-3" /> Session
-          </label>
-          <Input value={formData.session} onChange={e => setFormData({ ...formData, session: e.target.value })} placeholder="e.g. 2026-2027" />
-        </div>
-        <div className="col-span-2">
-          <label className="block text-xs text-muted-foreground mb-1">Address *</label>
-          <Input value={formData.address} onChange={e => setFormData({ ...formData, address: e.target.value })} required />
-        </div>
-      </div>
-      <div className="pt-2 flex gap-3">
-        <Button type="button" variant="ghost" onClick={() => { setIsAddModalOpen(false); setEditStudent(null); setFormData(EMPTY_FORM); }} className="flex-1">Cancel</Button>
-        <Button type="submit" className="flex-1" isLoading={isPending}>{submitLabel}</Button>
-      </div>
-    </form>
-  );
 
   return (
     <div className="space-y-6">
@@ -177,12 +200,28 @@ export default function AdminStudents() {
         </div>
       </Card>
 
-      <Modal isOpen={isAddModalOpen} onClose={() => { setIsAddModalOpen(false); setFormData(EMPTY_FORM); }} title="Add New Student">
-        <StudentForm onSubmit={handleCreate} isPending={isCreating} submitLabel="Create Student" />
+      <Modal isOpen={isAddModalOpen} onClose={closeModals} title="Add New Student">
+        <StudentForm
+          formData={formData}
+          onChange={setFormData}
+          onSubmit={handleCreate}
+          onCancel={closeModals}
+          isPending={isCreating}
+          isEdit={false}
+          submitLabel="Create Student"
+        />
       </Modal>
 
-      <Modal isOpen={!!editStudent} onClose={() => { setEditStudent(null); setFormData(EMPTY_FORM); }} title={`Edit — ${editStudent?.name}`}>
-        <StudentForm onSubmit={handleEdit} isPending={isUpdating} submitLabel="Save Changes" />
+      <Modal isOpen={!!editStudentId} onClose={closeModals} title={`Edit — ${editStudentName}`}>
+        <StudentForm
+          formData={formData}
+          onChange={setFormData}
+          onSubmit={handleEdit}
+          onCancel={closeModals}
+          isPending={isUpdating}
+          isEdit={true}
+          submitLabel="Save Changes"
+        />
       </Modal>
     </div>
   );
