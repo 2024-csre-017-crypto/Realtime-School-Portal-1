@@ -1,7 +1,7 @@
 import { useGetMe, useGetStudentDiary } from "@workspace/api-client-react";
 import { Card, Badge } from "@/components/ui-elements";
 import { format } from "date-fns";
-import { BookOpen } from "lucide-react";
+import { BookOpen, Image as ImageIcon } from "lucide-react";
 
 export default function StudentDiary() {
   const { data: me } = useGetMe();
@@ -23,19 +23,35 @@ export default function StudentDiary() {
             <p>No diary entries yet.</p>
           </Card>
         ) : (
-          diary?.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map((entry) => (
-            <Card key={entry.id} className="p-5 flex flex-col sm:flex-row gap-6">
-              <div className="sm:w-32 flex-shrink-0 text-center sm:text-left sm:border-r border-white/10 sm:pr-4">
-                <div className="text-3xl font-bold text-primary">{format(new Date(entry.date), "dd")}</div>
-                <div className="text-sm font-medium uppercase tracking-wider text-muted-foreground">{format(new Date(entry.date), "MMM yyyy")}</div>
-              </div>
-              <div className="flex-1">
-                <div className="flex justify-between items-start mb-2">
-                  <Badge variant="primary">{entry.subject}</Badge>
-                  <span className="text-xs text-muted-foreground">By: {entry.teacherId}</span>
+          diary?.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map((entry) => (
+            <Card key={entry.id} className="p-5 flex flex-col gap-4">
+              <div className="flex flex-col sm:flex-row gap-6">
+                <div className="sm:w-32 flex-shrink-0 text-center sm:text-left sm:border-r border-white/10 sm:pr-4">
+                  <div className="text-3xl font-bold text-primary">{format(new Date(entry.date), "dd")}</div>
+                  <div className="text-sm font-medium uppercase tracking-wider text-muted-foreground">{format(new Date(entry.date), "MMM yyyy")}</div>
                 </div>
-                <p className="text-foreground leading-relaxed mt-3">{entry.note}</p>
+                <div className="flex-1">
+                  <div className="flex justify-between items-start mb-2">
+                    <Badge variant="primary">{entry.subject}</Badge>
+                    <span className="text-xs text-muted-foreground">By: {entry.teacherId}</span>
+                  </div>
+                  <p className="text-foreground leading-relaxed mt-3">{entry.note}</p>
+                </div>
               </div>
+              {(entry as any).image && (
+                <div className="border-t border-white/5 pt-4">
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground mb-2">
+                    <ImageIcon className="w-3.5 h-3.5" /> Attached Image
+                  </div>
+                  <a href={(entry as any).image} target="_blank" rel="noopener noreferrer">
+                    <img
+                      src={(entry as any).image}
+                      alt="diary attachment"
+                      className="rounded-xl max-h-64 object-contain border border-white/10 hover:opacity-90 transition-opacity cursor-zoom-in"
+                    />
+                  </a>
+                </div>
+              )}
             </Card>
           ))
         )}

@@ -11,6 +11,7 @@ import progressRouter from "./progress";
 import adminRouter from "./admin";
 import notificationsRouter from "./notifications";
 import testResultsRouter from "./test-results";
+import storageRouter from "./storage";
 
 const router: IRouter = Router();
 
@@ -26,5 +27,6 @@ router.use("/progress", progressRouter);
 router.use("/admin", adminRouter);
 router.use("/admin/notifications", notificationsRouter);
 router.use("/test-results", testResultsRouter);
+router.use(storageRouter);
 
 export default router;

@@ -1,7 +1,8 @@
 import { useState, useRef, useEffect } from "react";
 import { useGetMe, useGetTeachers, useGetStudents } from "@workspace/api-client-react";
+import { useUpload } from "@workspace/object-storage-web";
 import { Card, Select, Input, Button, Badge } from "@/components/ui-elements";
-import { ClipboardList, Image, X, Trash2, TrendingUp } from "lucide-react";
+import { ClipboardList, Image, X, Trash2, TrendingUp, Loader2 } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 
@@ -41,13 +42,15 @@ export default function TeacherTestReport() {
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [totalMarks, setTotalMarks] = useState(100);
   const [obtainedMarks, setObtainedMarks] = useState(0);
-  const [image, setImage] = useState<File | null>(null);
+  const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [isPending, setIsPending] = useState(false);
   const [results, setResults] = useState<TestResult[]>([]);
   const [loadingResults, setLoadingResults] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
+
+  const { uploadFile, isUploading } = useUpload();
 
   useEffect(() => {
     if (!studentId) { setResults([]); return; }
@@ -61,12 +64,12 @@ export default function TeacherTestReport() {
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    setImage(file);
+    setImageFile(file);
     setImagePreview(URL.createObjectURL(file));
   };
 
   const removeImage = () => {
-    setImage(null);
+    setImageFile(null);
     setImagePreview(null);
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
@@ -77,20 +80,19 @@ export default function TeacherTestReport() {
     if (obtainedMarks > totalMarks) { alert("Obtained marks cannot exceed total marks."); return; }
     setIsPending(true);
 
-    const formData = new FormData();
-    formData.append("studentId", studentId);
-    formData.append("subject", subject);
-    formData.append("title", title);
-    formData.append("date", date);
-    formData.append("totalMarks", String(totalMarks));
-    formData.append("obtainedMarks", String(obtainedMarks));
-    if (image) formData.append("image", image);
-
     try {
+      let imageUrl: string | null = null;
+      if (imageFile) {
+        const result = await uploadFile(imageFile);
+        if (!result) throw new Error("Image upload failed");
+        imageUrl = `/api/storage${result.objectPath}`;
+      }
+
       const res = await fetch(`/api/test-results`, {
         method: "POST",
-        body: formData,
+        headers: { "Content-Type": "application/json" },
         credentials: "include",
+        body: JSON.stringify({ studentId, subject, title, date, totalMarks, obtainedMarks, imageUrl }),
       });
       if (!res.ok) throw new Error("Failed to submit");
       const newResult = await res.json();
@@ -116,6 +118,8 @@ export default function TeacherTestReport() {
   const avg = results.length > 0
     ? Math.round(results.reduce((s, r) => s + pct(r.obtainedMarks, r.totalMarks), 0) / results.length)
     : null;
+
+  const busy = isPending || isUploading;
 
   return (
     <div className="space-y-6 max-w-4xl mx-auto">
@@ -164,7 +168,7 @@ export default function TeacherTestReport() {
 
             <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-primary/10 border border-primary/20 md:col-span-2">
               <TrendingUp className="w-5 h-5 text-primary" />
-              <span className="text-sm font-medium">Score Preview: </span>
+              <span className="text-sm font-medium">Score Preview:</span>
               <span className={`text-lg font-bold ${gradeColor(pct(obtainedMarks, totalMarks))}`}>
                 {pct(obtainedMarks, totalMarks)}%
               </span>
@@ -173,7 +177,7 @@ export default function TeacherTestReport() {
 
             <div className="md:col-span-2">
               <label className="block text-sm font-medium text-muted-foreground mb-2">
-                Test Paper / Answer Sheet Image <span className="text-xs opacity-60">(optional)</span>
+                Test Paper / Answer Sheet Image <span className="text-xs opacity-60">(optional — saved to cloud)</span>
               </label>
               <input ref={fileInputRef} type="file" accept="image/*" onChange={handleImageChange} className="hidden" id="test-image" />
               {!imagePreview ? (
@@ -183,8 +187,13 @@ export default function TeacherTestReport() {
                 </label>
               ) : (
                 <div className="relative inline-block">
+                  {isUploading && (
+                    <div className="absolute inset-0 bg-black/50 rounded-xl flex items-center justify-center z-10">
+                      <Loader2 className="w-6 h-6 text-white animate-spin" />
+                    </div>
+                  )}
                   <img src={imagePreview} alt="preview" className="rounded-xl max-h-48 object-cover border border-white/10" />
-                  <button type="button" onClick={removeImage} className="absolute top-2 right-2 bg-black/60 rounded-full p-1 text-white hover:bg-red-500/80 transition-colors">
+                  <button type="button" onClick={removeImage} disabled={isUploading} className="absolute top-2 right-2 bg-black/60 rounded-full p-1 text-white hover:bg-red-500/80 transition-colors">
                     <X className="w-4 h-4" />
                   </button>
                 </div>
@@ -192,8 +201,9 @@ export default function TeacherTestReport() {
             </div>
           </div>
 
-          <Button type="submit" className="w-full" isLoading={isPending}>
-            <ClipboardList className="w-4 h-4" /> Submit Test Result
+          <Button type="submit" className="w-full" isLoading={busy}>
+            <ClipboardList className="w-4 h-4" />
+            {isUploading ? "Uploading image…" : "Submit Test Result"}
           </Button>
         </form>
       </Card>
@@ -212,7 +222,7 @@ export default function TeacherTestReport() {
           </div>
 
           {loadingResults ? (
-            <p className="text-muted-foreground text-sm">Loading results...</p>
+            <p className="text-muted-foreground text-sm">Loading results…</p>
           ) : results.length === 0 ? (
             <Card className="p-8 text-center text-muted-foreground">
               <ClipboardList className="w-10 h-10 mx-auto mb-2 opacity-20" />
@@ -225,7 +235,9 @@ export default function TeacherTestReport() {
                 return (
                   <Card key={r.id} className="p-4 flex gap-4 items-start">
                     {r.image && (
-                      <img src={r.image} alt="test" className="w-20 h-20 object-cover rounded-lg border border-white/10 flex-shrink-0" />
+                      <a href={r.image} target="_blank" rel="noopener noreferrer">
+                        <img src={r.image} alt="test" className="w-20 h-20 object-cover rounded-lg border border-white/10 flex-shrink-0 hover:opacity-80 transition-opacity" />
+                      </a>
                     )}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-start justify-between gap-2 mb-1">
@@ -233,10 +245,7 @@ export default function TeacherTestReport() {
                           <p className="font-semibold">{r.title}</p>
                           <p className="text-xs text-muted-foreground">{r.subject} · {format(new Date(r.date), "dd MMM yyyy")}</p>
                         </div>
-                        <button
-                          onClick={() => handleDelete(r.id, r.studentId)}
-                          className="text-muted-foreground hover:text-red-400 transition-colors flex-shrink-0"
-                        >
+                        <button onClick={() => handleDelete(r.id, r.studentId)} className="text-muted-foreground hover:text-red-400 transition-colors flex-shrink-0">
                           <Trash2 className="w-4 h-4" />
                         </button>
                       </div>

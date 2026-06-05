@@ -1,14 +1,15 @@
 import { useState, useRef } from "react";
 import { useGetMe, useGetTeachers, useGetStudents } from "@workspace/api-client-react";
+import { useUpload } from "@workspace/object-storage-web";
 import { Card, Select, Input, Button } from "@/components/ui-elements";
-import { Save, Image, FileText, X } from "lucide-react";
+import { Save, Image, FileText, X, Loader2 } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 
 export default function TeacherSyllabus() {
   const { data: me } = useGetMe();
   const { data: teachers } = useGetTeachers();
   const { data: students } = useGetStudents();
-  
+
   const teacher = teachers?.find(t => t.id === me?.id);
   const myStudents = students?.filter(s => teacher?.classes.includes(s.class)) || [];
 
@@ -17,36 +18,39 @@ export default function TeacherSyllabus() {
   const [totalChapters, setTotalChapters] = useState(10);
   const [doneChapters, setDoneChapters] = useState(0);
   const [lastTopic, setLastTopic] = useState("");
-  const [image, setImage] = useState<File | null>(null);
+  const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
-  const [pdf, setPdf] = useState<File | null>(null);
+  const [pdfFile, setPdfFile] = useState<File | null>(null);
   const [isPending, setIsPending] = useState(false);
 
   const imageInputRef = useRef<HTMLInputElement>(null);
   const pdfInputRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
 
+  const { uploadFile: uploadImage, isUploading: uploadingImage } = useUpload();
+  const { uploadFile: uploadPdf, isUploading: uploadingPdf } = useUpload();
+
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    setImage(file);
+    setImageFile(file);
     setImagePreview(URL.createObjectURL(file));
   };
 
   const handlePdfChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    setPdf(file);
+    setPdfFile(file);
   };
 
   const removeImage = () => {
-    setImage(null);
+    setImageFile(null);
     setImagePreview(null);
     if (imageInputRef.current) imageInputRef.current.value = "";
   };
 
   const removePdf = () => {
-    setPdf(null);
+    setPdfFile(null);
     if (pdfInputRef.current) pdfInputRef.current.value = "";
   };
 
@@ -55,19 +59,33 @@ export default function TeacherSyllabus() {
     if (!studentId) return;
     setIsPending(true);
 
-    const formData = new FormData();
-    formData.append("subject", subject);
-    formData.append("totalChapters", String(totalChapters));
-    formData.append("doneChapters", String(doneChapters));
-    formData.append("lastTopic", lastTopic);
-    if (image) formData.append("image", image);
-    if (pdf) formData.append("pdf", pdf);
-
     try {
+      let imageUrl: string | undefined;
+      let pdfUrl: string | undefined;
+
+      if (imageFile) {
+        const result = await uploadImage(imageFile);
+        if (!result) throw new Error("Image upload failed");
+        imageUrl = `/api/storage${result.objectPath}`;
+      }
+      if (pdfFile) {
+        const result = await uploadPdf(pdfFile);
+        if (!result) throw new Error("PDF upload failed");
+        pdfUrl = `/api/storage${result.objectPath}`;
+      }
+
       const res = await fetch(`/api/syllabus/${studentId}`, {
         method: "POST",
-        body: formData,
+        headers: { "Content-Type": "application/json" },
         credentials: "include",
+        body: JSON.stringify({
+          subject,
+          totalChapters: Number(totalChapters),
+          doneChapters: Number(doneChapters),
+          lastTopic,
+          imageUrl,
+          pdfUrl,
+        }),
       });
       if (!res.ok) throw new Error("Failed to update syllabus");
       alert("Syllabus updated!");
@@ -78,6 +96,8 @@ export default function TeacherSyllabus() {
       setIsPending(false);
     }
   };
+
+  const busy = isPending || uploadingImage || uploadingPdf;
 
   return (
     <div className="space-y-6 max-w-3xl mx-auto">
@@ -131,8 +151,13 @@ export default function TeacherSyllabus() {
                 </label>
               ) : (
                 <div className="relative inline-block">
+                  {uploadingImage && (
+                    <div className="absolute inset-0 bg-black/50 rounded-xl flex items-center justify-center z-10">
+                      <Loader2 className="w-6 h-6 text-white animate-spin" />
+                    </div>
+                  )}
                   <img src={imagePreview} alt="preview" className="rounded-xl max-h-40 object-cover border border-white/10" />
-                  <button type="button" onClick={removeImage} className="absolute top-2 right-2 bg-black/60 rounded-full p-1 text-white hover:bg-red-500/80 transition-colors">
+                  <button type="button" onClick={removeImage} disabled={uploadingImage} className="absolute top-2 right-2 bg-black/60 rounded-full p-1 text-white hover:bg-red-500/80 transition-colors">
                     <X className="w-4 h-4" />
                   </button>
                 </div>
@@ -144,16 +169,16 @@ export default function TeacherSyllabus() {
                 Syllabus PDF <span className="text-xs opacity-60">(optional)</span>
               </label>
               <input ref={pdfInputRef} type="file" accept="application/pdf" onChange={handlePdfChange} className="hidden" id="syllabus-pdf" />
-              {!pdf ? (
+              {!pdfFile ? (
                 <label htmlFor="syllabus-pdf" className="flex items-center gap-3 px-4 py-3 rounded-xl border border-dashed border-white/20 text-muted-foreground hover:border-primary hover:text-primary cursor-pointer transition-colors">
                   <FileText className="w-5 h-5" />
                   <span className="text-sm">Click to attach a PDF document</span>
                 </label>
               ) : (
                 <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-black/20 border border-white/10">
-                  <FileText className="w-5 h-5 text-red-400" />
-                  <span className="text-sm flex-1 truncate">{pdf.name}</span>
-                  <button type="button" onClick={removePdf} className="text-muted-foreground hover:text-red-400 transition-colors">
+                  {uploadingPdf ? <Loader2 className="w-5 h-5 text-primary animate-spin" /> : <FileText className="w-5 h-5 text-red-400" />}
+                  <span className="text-sm flex-1 truncate">{pdfFile.name}</span>
+                  <button type="button" onClick={removePdf} disabled={uploadingPdf} className="text-muted-foreground hover:text-red-400 transition-colors">
                     <X className="w-4 h-4" />
                   </button>
                 </div>
@@ -161,8 +186,8 @@ export default function TeacherSyllabus() {
             </div>
           </div>
 
-          <Button type="submit" className="w-full" isLoading={isPending}>
-            <Save className="w-4 h-4" /> Save Progress
+          <Button type="submit" className="w-full" isLoading={busy}>
+            <Save className="w-4 h-4" /> {busy ? "Uploading files…" : "Save Progress"}
           </Button>
         </form>
       </Card>
