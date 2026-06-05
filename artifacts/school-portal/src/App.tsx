@@ -18,6 +18,7 @@ import TeacherHome from "@/pages/teacher/home";
 import TeacherDiary from "@/pages/teacher/diary";
 import TeacherSyllabus from "@/pages/teacher/syllabus";
 import TeacherClasses from "@/pages/teacher/classes";
+import TeacherTestReport from "@/pages/teacher/test-report";
 
 // Student Pages
 import StudentHome from "@/pages/student/home";
@@ -73,6 +74,9 @@ function Router() {
       </Route>
       <Route path="/teacher/classes">
         {() => <Layout><TeacherClasses /></Layout>}
+      </Route>
+      <Route path="/teacher/test-report">
+        {() => <Layout><TeacherTestReport /></Layout>}
       </Route>
 
       {/* Student Routes */}

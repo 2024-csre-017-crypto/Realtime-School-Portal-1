@@ -1,7 +1,7 @@
-import { useState } from "react";
-import { useGetMe, useGetTeachers, useGetStudents, useAddDiaryEntry } from "@workspace/api-client-react";
+import { useState, useRef } from "react";
+import { useGetMe, useGetTeachers, useGetStudents } from "@workspace/api-client-react";
 import { Card, Select, Input, Button } from "@/components/ui-elements";
-import { Send } from "lucide-react";
+import { Send, Image, X } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 
 export default function TeacherDiary() {
@@ -16,28 +16,59 @@ export default function TeacherDiary() {
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [subject, setSubject] = useState(teacher?.subject || "");
   const [note, setNote] = useState("");
-
-  const { mutate: addEntry, isPending } = useAddDiaryEntry();
+  const [image, setImage] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [isPending, setIsPending] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImage(file);
+    setImagePreview(URL.createObjectURL(file));
+  };
+
+  const removeImage = () => {
+    setImage(null);
+    setImagePreview(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!studentId) return;
-    
-    addEntry({ studentId, data: { date, subject, note } }, {
-      onSuccess: () => {
-        alert("Diary entry posted!");
-        setNote("");
-        queryClient.invalidateQueries({ queryKey: [`/api/diary/${studentId}`]});
-      }
-    });
+    setIsPending(true);
+
+    const formData = new FormData();
+    formData.append("date", date);
+    formData.append("subject", subject);
+    formData.append("note", note);
+    if (image) formData.append("image", image);
+
+    try {
+      const res = await fetch(`/api/diary/${studentId}`, {
+        method: "POST",
+        body: formData,
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error("Failed to post entry");
+      alert("Diary entry posted!");
+      setNote("");
+      removeImage();
+      queryClient.invalidateQueries({ queryKey: [`/api/diary/${studentId}`] });
+    } catch {
+      alert("Failed to post diary entry.");
+    } finally {
+      setIsPending(false);
+    }
   };
 
   return (
     <div className="space-y-6 max-w-3xl mx-auto">
       <div>
         <h1 className="text-3xl font-display font-bold">Write Diary</h1>
-        <p className="text-muted-foreground mt-1">Send notes to your students</p>
+        <p className="text-muted-foreground mt-1">Send notes and images to your students</p>
       </div>
 
       <Card className="p-6 md:p-8">
@@ -62,17 +93,51 @@ export default function TeacherDiary() {
             </div>
             <div className="md:col-span-2">
               <label className="block text-sm font-medium text-muted-foreground mb-2">Message</label>
-              <textarea 
+              <textarea
                 value={note}
                 onChange={e => setNote(e.target.value)}
                 required
                 rows={5}
                 className="w-full px-4 py-3 rounded-xl bg-black/20 border border-white/10 text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all duration-200 resize-none"
                 placeholder="Write your note here..."
-              ></textarea>
+              />
+            </div>
+
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium text-muted-foreground mb-2">
+                Attach Image <span className="text-xs opacity-60">(optional)</span>
+              </label>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleImageChange}
+                className="hidden"
+                id="diary-image"
+              />
+              {!imagePreview ? (
+                <label
+                  htmlFor="diary-image"
+                  className="flex items-center gap-3 px-4 py-3 rounded-xl border border-dashed border-white/20 text-muted-foreground hover:border-primary hover:text-primary cursor-pointer transition-colors"
+                >
+                  <Image className="w-5 h-5" />
+                  <span className="text-sm">Click to attach an image</span>
+                </label>
+              ) : (
+                <div className="relative inline-block">
+                  <img src={imagePreview} alt="preview" className="rounded-xl max-h-48 object-cover border border-white/10" />
+                  <button
+                    type="button"
+                    onClick={removeImage}
+                    className="absolute top-2 right-2 bg-black/60 rounded-full p-1 text-white hover:bg-red-500/80 transition-colors"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              )}
             </div>
           </div>
-          
+
           <Button type="submit" className="w-full" isLoading={isPending}>
             <Send className="w-4 h-4" /> Send Entry
           </Button>

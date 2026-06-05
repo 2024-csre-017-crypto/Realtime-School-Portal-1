@@ -10,6 +10,7 @@ import timetableRouter from "./timetable";
 import progressRouter from "./progress";
 import adminRouter from "./admin";
 import notificationsRouter from "./notifications";
+import testResultsRouter from "./test-results";
 
 const router: IRouter = Router();
 
@@ -24,5 +25,6 @@ router.use("/timetable", timetableRouter);
 router.use("/progress", progressRouter);
 router.use("/admin", adminRouter);
 router.use("/admin/notifications", notificationsRouter);
+router.use("/test-results", testResultsRouter);
 
 export default router;

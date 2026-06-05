@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 import { 
   Home, BookOpen, GraduationCap, Calendar, CreditCard, 
   TrendingUp, Users, Settings, LayoutDashboard, LogOut, 
-  BookMarked, Bell
+  BookMarked, Bell, ClipboardList
 } from "lucide-react";
 import { motion } from "framer-motion";
 
@@ -42,6 +42,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
       { path: "/teacher", label: "Home", icon: Home },
       { path: "/teacher/diary", label: "Diary", icon: BookOpen },
       { path: "/teacher/syllabus", label: "Syllabus", icon: GraduationCap },
+      { path: "/teacher/test-report", label: "Test Report", icon: ClipboardList },
       { path: "/teacher/classes", label: "My Classes", icon: Users },
     ];
   } else {

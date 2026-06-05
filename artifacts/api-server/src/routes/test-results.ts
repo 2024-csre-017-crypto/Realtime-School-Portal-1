@@ -6,6 +6,7 @@ import { db } from "@workspace/db";
 import { testResultsTable } from "@workspace/db/schema";
 import { eq, desc } from "drizzle-orm";
 import { requireAuth } from "../lib/session";
+import { recalcProgress } from "./progress";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -27,7 +28,6 @@ const upload = multer({
 
 const router = Router();
 
-// GET /api/test-results/:studentId
 router.get("/:studentId", async (req, res) => {
   const user = requireAuth(req, res);
   if (!user) return;
@@ -39,7 +39,19 @@ router.get("/:studentId", async (req, res) => {
   res.json(results);
 });
 
-// POST /api/test-results — create result (teacher only)
+router.get("/", async (req, res) => {
+  const user = requireAuth(req, res);
+  if (!user || user.role !== "teacher") {
+    res.status(403).json({ message: "Teachers only" }); return;
+  }
+  const results = await db
+    .select()
+    .from(testResultsTable)
+    .where(eq(testResultsTable.teacherId, user.id))
+    .orderBy(desc(testResultsTable.date));
+  res.json(results);
+});
+
 router.post("/", upload.single("image"), async (req, res) => {
   const user = requireAuth(req, res);
   if (!user || user.role !== "teacher") {
@@ -58,10 +70,12 @@ router.post("/", upload.single("image"), async (req, res) => {
     obtainedMarks: Number(obtainedMarks),
     image: imageUrl,
   }).returning();
+
+  await recalcProgress(studentId).catch(() => {});
+
   res.status(201).json(result);
 });
 
-// POST /api/test-results/:id/image — upload/replace image
 router.post("/:id/image", upload.single("image"), async (req, res) => {
   const user = requireAuth(req, res);
   if (!user || user.role !== "teacher") {
@@ -77,13 +91,14 @@ router.post("/:id/image", upload.single("image"), async (req, res) => {
   res.json(updated);
 });
 
-// DELETE /api/test-results/:id
 router.delete("/:id", async (req, res) => {
   const user = requireAuth(req, res);
   if (!user || user.role !== "teacher") {
     res.status(403).json({ message: "Teachers only" }); return;
   }
+  const [deleted] = await db.select().from(testResultsTable).where(eq(testResultsTable.id, Number(req.params.id)));
   await db.delete(testResultsTable).where(eq(testResultsTable.id, Number(req.params.id)));
+  if (deleted) await recalcProgress(deleted.studentId).catch(() => {});
   res.json({ ok: true });
 });
 

@@ -44,6 +44,7 @@ export const diaryTable = pgTable("diary", {
   subject: text("subject").notNull(),
   note: text("note").notNull(),
   teacherId: text("teacher_id").notNull().references(() => teachersTable.id, { onDelete: "cascade" }),
+  image: text("image"),
 });
 
 export const syllabusTable = pgTable("syllabus", {
@@ -55,6 +56,7 @@ export const syllabusTable = pgTable("syllabus", {
   lastTopic: text("last_topic").notNull(),
   teacherId: text("teacher_id").notNull().references(() => teachersTable.id, { onDelete: "cascade" }),
   bookImage: text("book_image"),
+  pdfUrl: text("pdf_url"),
 });
 
 export const testResultsTable = pgTable("test_results", {
