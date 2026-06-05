@@ -120,7 +120,7 @@ router.post("/:studentId/photo", uploadPhoto.single("photo"), async (req, res) =
   const photoUrl = `/uploads/${req.file.filename}`;
   const [student] = await db.update(studentsTable)
     .set({ photo: photoUrl })
-    .where(eq(studentsTable.id, studentId))
+    .where(eq(studentsTable.id, String(studentId)))
     .returning();
 
   if (!student) { res.status(404).json({ message: "Student not found" }); return; }

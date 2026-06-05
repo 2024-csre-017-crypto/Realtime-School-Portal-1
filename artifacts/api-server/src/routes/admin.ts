@@ -1,6 +1,6 @@
 import { Router } from "express";
 import multer from "multer";
-import * as XLSX from "xlsx";
+import ExcelJS from "exceljs";
 import { db } from "@workspace/db";
 import {
   studentsTable,
@@ -129,7 +129,28 @@ router.post("/import", upload.single("file"), async (req, res) => {
     return;
   }
 
-  const workbook = XLSX.read(req.file.buffer, { type: "buffer" });
+  const workbook = new ExcelJS.Workbook();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  await workbook.xlsx.load(req.file.buffer as any);
+
+  function sheetToJson(sheet: ExcelJS.Worksheet): Record<string, string>[] {
+    const headers: string[] = [];
+    const rows: Record<string, string>[] = [];
+    sheet.eachRow((row, rowNumber) => {
+      if (rowNumber === 1) {
+        row.eachCell({ includeEmpty: true }, (cell, colNumber) => {
+          headers[colNumber] = String(cell.value ?? "");
+        });
+      } else {
+        const obj: Record<string, string> = {};
+        row.eachCell({ includeEmpty: true }, (cell, colNumber) => {
+          obj[headers[colNumber]] = String(cell.value ?? "");
+        });
+        rows.push(obj);
+      }
+    });
+    return rows;
+  }
 
   const result = {
     students: { imported: 0, skipped: 0, errors: [] as string[] },
@@ -138,9 +159,9 @@ router.post("/import", upload.single("file"), async (req, res) => {
   };
 
   // ── Students sheet ──────────────────────────────────────────────────────────
-  const studentsSheet = workbook.Sheets["Students"] || workbook.Sheets["students"] || workbook.Sheets["STUDENTS"];
+  const studentsSheet = workbook.getWorksheet("Students") || workbook.getWorksheet("students") || workbook.getWorksheet("STUDENTS");
   if (studentsSheet) {
-    const rows = XLSX.utils.sheet_to_json<Record<string, string>>(studentsSheet);
+    const rows = sheetToJson(studentsSheet);
     for (const row of rows) {
       try {
         const id = String(row["ID"] || row["id"] || "").trim();
@@ -197,9 +218,9 @@ router.post("/import", upload.single("file"), async (req, res) => {
   }
 
   // ── Teachers sheet ──────────────────────────────────────────────────────────
-  const teachersSheet = workbook.Sheets["Teachers"] || workbook.Sheets["teachers"] || workbook.Sheets["TEACHERS"];
+  const teachersSheet = workbook.getWorksheet("Teachers") || workbook.getWorksheet("teachers") || workbook.getWorksheet("TEACHERS");
   if (teachersSheet) {
-    const rows = XLSX.utils.sheet_to_json<Record<string, string>>(teachersSheet);
+    const rows = sheetToJson(teachersSheet);
     for (const row of rows) {
       try {
         const id = String(row["ID"] || row["id"] || "").trim();
@@ -253,9 +274,9 @@ router.post("/import", upload.single("file"), async (req, res) => {
   }
 
   // ── Fees sheet ───────────────────────────────────────────────────────────────
-  const feesSheet = workbook.Sheets["Fees"] || workbook.Sheets["fees"] || workbook.Sheets["FEES"];
+  const feesSheet = workbook.getWorksheet("Fees") || workbook.getWorksheet("fees") || workbook.getWorksheet("FEES");
   if (feesSheet) {
-    const rows = XLSX.utils.sheet_to_json<Record<string, string>>(feesSheet);
+    const rows = sheetToJson(feesSheet);
     for (const row of rows) {
       try {
         const studentId = String(row["Student ID"] || row["studentId"] || row["StudentID"] || "").trim();
@@ -302,48 +323,45 @@ router.post("/import", upload.single("file"), async (req, res) => {
   res.json({
     message: "Import complete",
     result,
-    sheetsFound: workbook.SheetNames,
+    sheetsFound: workbook.worksheets.map((ws) => ws.name),
   });
 });
 
 // ─── DOWNLOAD TEMPLATE ────────────────────────────────────────────────────────
-router.get("/import/template", (req, res) => {
+router.get("/import/template", async (req, res) => {
   const user = requireAuth(req, res);
   if (!user || user.role !== "admin") {
     res.status(403).json({ message: "Admin only" });
     return;
   }
 
-  const workbook = XLSX.utils.book_new();
+  const workbook = new ExcelJS.Workbook();
 
-  const studentsData = [
+  const studentsWS = workbook.addWorksheet("Students");
+  studentsWS.addRows([
     ["ID", "Name", "Password", "Class", "Father", "Phone", "DOB", "Address", "Roll No"],
     ["STU001", "Ahmad Ali", "ahmad123", "10-A", "Ali Hassan", "0303-1111111", "2010-03-15", "Lahore", "01"],
     ["STU005", "Sara Bibi", "sara123", "9-A", "Bibi Khan", "0307-5555555", "2011-06-20", "Lahore", "05"],
-  ];
-  const studentsWS = XLSX.utils.aoa_to_sheet(studentsData);
-  XLSX.utils.book_append_sheet(workbook, studentsWS, "Students");
+  ]);
 
-  const teachersData = [
+  const teachersWS = workbook.addWorksheet("Teachers");
+  teachersWS.addRows([
     ["ID", "Name", "Password", "Subject", "Joining", "Salary", "Phone", "Address", "Classes"],
     ["T001", "Sana Ahmed", "sana123", "Science", "2019-03-15", "45000", "0300-1111111", "Lahore", "9-A,9-B,10-A"],
     ["T004", "New Teacher", "pass123", "History", "2024-01-01", "40000", "0300-9999999", "Lahore", "9-A,10-A"],
-  ];
-  const teachersWS = XLSX.utils.aoa_to_sheet(teachersData);
-  XLSX.utils.book_append_sheet(workbook, teachersWS, "Teachers");
+  ]);
 
-  const feesData = [
+  const feesWS = workbook.addWorksheet("Fees");
+  feesWS.addRows([
     ["Student ID", "Month", "Amount", "Paid", "Paid Date"],
     ["STU001", "March 2026", "4500", "false", ""],
     ["STU002", "March 2026", "4500", "true", "2026-03-05"],
-  ];
-  const feesWS = XLSX.utils.aoa_to_sheet(feesData);
-  XLSX.utils.book_append_sheet(workbook, feesWS, "Fees");
+  ]);
 
-  const buffer = XLSX.write(workbook, { type: "buffer", bookType: "xlsx" });
+  const buffer = await workbook.xlsx.writeBuffer();
   res.setHeader("Content-Disposition", "attachment; filename=school-portal-template.xlsx");
   res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
-  res.send(buffer);
+  res.send(Buffer.from(buffer));
 });
 
 export default router;
